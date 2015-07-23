@@ -44,6 +44,44 @@ float r = 1.0f;
 //カラーマップ用のメモリ
 RGBQUAD *colorRGBX;
 
+
+//Depthの移動平均法による精度向上
+const int nFrame = 100;      // 移動平均を行うフレーム数 30なら30FPSなので１秒分  100フレーム位が良好
+const double Kd = 1 / (double)nFrame; // 移動平均を除算を使わず乗算で求めるための係数
+const int Dx = 512;          // 画面イメージの水平方向画素数
+const int Dy = 424;          // 画面イメージの垂直方向画素数
+const int dByte = 4;         // XRGB形式なので４バイト
+const int dPixels = Dx * Dy; // 1フレーム分の画素数
+int ptr = 0;                 // 移動平均を行う為のデータ格納ポインタ
+
+//vector<UINT16> DataIn;       // Kinectからデプスを取得するためのバッファ（１フレーム分）[dPixels] = depthBuffer
+UINT16 *depthBuffer = new UINT16[dPixels];
+UINT16 *nDepthBuffer = new UINT16[dPixels * nFrame]; // nFrame分のデプスバッファ [dPixels * nFrame]
+long *Sum = new long[dPixels]; // nFrame分の移動加算値を格納する為のバッファ[dPixels]
+
+//平均結果のDepth
+unsigned short* aveDepthData = new unsigned short[dPixels];
+
+//平均結果を用いたCameraSpacePoint
+CameraSpacePoint *cameraSpacePoints_ave = NULL;
+
+
+
+void FIFOFilter()
+{
+    int j = dPixels * ptr;
+    for (int i = 0; i < dPixels; i++)
+    {
+		Sum[i] += (long)depthBuffer[i] - (long)nDepthBuffer[j + i]; // 移動加算値Sum[i]の変化成分のみ修正
+		nDepthBuffer[j + i] = depthBuffer[i]; // 新規データDataIn[i]をバッファに格納
+		//cout << "Sum[" << i << "]: " << Sum[i] << endl;
+
+    }
+    ptr++;
+    if (ptr == nFrame) { ptr = 0; } //【バッファポインタ更新】
+}
+
+
 void kinectInit() {
   ERROR_CHECK(GetDefaultKinectSensor(&kinect));
   ERROR_CHECK(kinect->get_CoordinateMapper(&coordinateMapper));
@@ -53,6 +91,10 @@ void kinectInit() {
 		       | FrameSourceTypes::FrameSourceTypes_Color
 			   | FrameSourceTypes::FrameSourceTypes_BodyIndex,
 		       &multiFrameReader));
+
+ for (int i = 0; i < dPixels; i++) { Sum[i] = 0; } //移動加算バッファを０クリア
+ for (int i = 0; i < dPixels; i++) { depthBuffer[i] = 0; } //移動加算バッファを０クリア
+ for (int i = 0; i < dPixels * nFrame; i++) { nDepthBuffer[i] = 0; } //0クリア
 
 }
 
@@ -68,7 +110,7 @@ void capture()
 	IDepthFrame *depthFrame = NULL;
 	IDepthFrameReference *depthFrameReference = NULL;
 	UINT bufferSize = 0;
-	UINT16 *depthBuffer = NULL;
+//	UINT16 *depthBuffer = NULL;
 
 	IBodyIndexFrame *bodyIndexFrame = NULL;
 	IBodyIndexFrameReference *bodyIndexFrameReference = NULL;
@@ -129,7 +171,8 @@ void capture()
 		continue;
 	}
 
-	hr = depthFrame->AccessUnderlyingBuffer(&bufferSize, &depthBuffer);
+//	hr = depthFrame->AccessUnderlyingBuffer(&bufferSize, &depthBuffer);
+	hr = depthFrame->CopyFrameDataToArray( dPixels, &depthBuffer[0] );
 	if (FAILED(hr)) {
 		Sleep(1);
 		fprintf(stderr, "AccessUnderlyingBuffer(&bufferSize, &depthBuffer\n");
@@ -185,21 +228,6 @@ void capture()
 		continue;
 	}
 
-/*
-	hr = depthFrame->AccessUnderlyingBuffer(&bufferSize, &depthBuffer);
-	if (FAILED(hr)) {
-		Sleep(1);
-		fprintf(stderr, "AccessUnderlyingBuffer(&bufferSize, &depthBuffer\n");
-		SafeRelease(depthFrame);
-		SafeRelease(depthFrameReference);
-		SafeRelease(bodyIndexFrame);
-		SafeRelease(bodyIndexFrameReference);
-		SafeRelease(colorFrameReference);
-		SafeRelease(colorFrame);
-		SafeRelease(multiFrame);
-		continue;
-	}
-*/
     SafeRelease(colorFrameReference);
 	SafeRelease(bodyIndexFrameReference);
 	SafeRelease(depthFrameReference);
@@ -256,6 +284,10 @@ void capture()
 	{
 		cameraSpacePoints = new CameraSpacePoint[width * height];
 	}
+	if (cameraSpacePoints_ave == NULL)
+	{
+		cameraSpacePoints_ave = new CameraSpacePoint[width * height];
+	}
 
 	ERROR_CHECK2(coordinateMapper->MapDepthFrameToColorSpace(
 	      width * height, (UINT16*)depthBuffer, 
@@ -294,9 +326,6 @@ void capture()
 		}
 	}
 
-  //static UINT bodyIndexBufferSize = 512 * 424;
- // bodyIndexBuffer = new BYTE[bodyIndexBufferSize];
- // ERROR_CHECK(bodyIndexFrame->CopyFrameDataToArray(bodyIndexBufferSize, &bodyIndexBuffer[0]));
 
 	//フレームリソースを解放
   SafeRelease(colorFrame);
@@ -335,7 +364,7 @@ void keyboard(unsigned char key, int x, int y)
 	}
 }
 
-void display()
+void display_mesh()
 {
 	//画面のキャプチャ
 	capture();
@@ -385,6 +414,63 @@ void display()
 	glutSwapBuffers();
 }
 
+void display_points(){
+	//画面のキャプチャ
+	capture();
+
+	//移動平均
+	FIFOFilter();
+	//除算->データ格納
+	for(int i = 0; i < dPixels; i++)
+	{
+		aveDepthData[i] = (unsigned short)(Sum[i]*Kd); //移動加算値Sum[i]から移動平均値kを求める
+	}
+
+	//CameraSpacePointへ変換
+	ERROR_CHECK2(coordinateMapper->MapDepthFrameToCameraSpace(
+		width * height, (UINT16*)aveDepthData, 
+	      width * height, cameraSpacePoints_ave),"MapDepthFrameToCameraSpace_ave");
+
+
+
+	//**描画処理**//
+	glEnable(GL_DEPTH_TEST);
+
+	//画面が細かいので、適当なピッチに粗くする
+	int pitch = 1;
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glLoadIdentity(); //変換行列の初期化
+	float cx = 0.0f;
+	float cy = 0.0f;
+	float cz = 1.0f;
+	float x = r * cos(fai) * sin(theta) + cx;
+	float y = r * sin(fai) + cy;
+	float z = r * cos(fai) * cos(theta) + cz;
+	gluLookAt(x, y, z, cx, cy, cz, 0.0f, 1.0f, 0.0f);
+
+	glPointSize(1.0f);
+	glBegin(GL_POINTS);
+	for(int y = 0; y < height; y++){
+		for(int x = 0; x < width; x++){
+			int index = y * width + x;
+
+			float px = cameraSpacePoints[index].X;
+			float py = cameraSpacePoints[index].Y;
+			float pz = cameraSpacePoints[index].Z;
+
+			//float px = cameraSpacePoints_ave[index].X;
+			//float py = cameraSpacePoints_ave[index].Y;
+			//float pz = cameraSpacePoints_ave[index].Z;
+
+			glColor3f(colorMap[index][0], colorMap[index][1], colorMap[index][2]);
+			glVertex3f(px, py, pz);
+		}
+	}
+	glEnd();
+
+	glutSwapBuffers();
+}
+
 //idle状態になったら、再描画を強制する
 //これにより、無限ループの表示が可能になる
 void idle()
@@ -410,7 +496,7 @@ int main(int argc, char **argv){
 
 	glMatrixMode(GL_MODELVIEW);
 	//ハンドラ関数の設定
-	glutDisplayFunc(display);
+	glutDisplayFunc(display_points);
 	glutKeyboardFunc(keyboard);
 	glutIdleFunc(idle);
 	glutMainLoop();
