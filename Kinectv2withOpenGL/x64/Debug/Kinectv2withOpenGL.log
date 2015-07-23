@@ -1,0 +1,18 @@
+﻿2015/07/23 19:19:32 にビルドを開始しました。
+     1>ノード 2 上のプロジェクト "C:\Users\PC-4\Desktop\Kinectv2withOpenGL_3D\Kinectv2withOpenGL\Kinectv2withOpenGL.vcxproj" (Build ターゲット)。
+     1>InitializeBuildStatus:
+         "AlwaysCreate" が指定されたため "x64\Debug\Kinectv2withOpenGL.unsuccessfulbuild" を作成しています。
+       ClCompile:
+         C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\bin\x86_amd64\CL.exe /c /I"C:\Program Files\Microsoft SDKs\Kinect\v2.0_1409\\inc" /Zi /nologo /W3 /WX- /sdl /Od /D WIN32 /D _DEBUG /D _CONSOLE /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"x64\Debug\\" /Fd"x64\Debug\vc110.pdb" /Gd /TP /errorReport:prompt Main.cpp
+         Main.cpp
+       Link:
+         C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\bin\x86_amd64\link.exe /ERRORREPORT:PROMPT /OUT:"C:\Users\PC-4\Desktop\Kinectv2withOpenGL_3D\x64\Debug\Kinectv2withOpenGL.exe" /INCREMENTAL /NOLOGO /LIBPATH:"C:\Program Files\Microsoft SDKs\Kinect\v2.0_1409\\lib\x64" Kinect20.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"C:\Users\PC-4\Desktop\Kinectv2withOpenGL_3D\x64\Debug\Kinectv2withOpenGL.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"C:\Users\PC-4\Desktop\Kinectv2withOpenGL_3D\x64\Debug\Kinectv2withOpenGL.lib" /MACHINE:X64 x64\Debug\Main.obj
+         Kinectv2withOpenGL.vcxproj -> C:\Users\PC-4\Desktop\Kinectv2withOpenGL_3D\x64\Debug\Kinectv2withOpenGL.exe
+       FinalizeBuildStatus:
+         ファイル "x64\Debug\Kinectv2withOpenGL.unsuccessfulbuild" を削除しています。
+         "x64\Debug\Kinectv2withOpenGL.lastbuildstate" のタッチ タスクを実行しています。
+     1>プロジェクト "C:\Users\PC-4\Desktop\Kinectv2withOpenGL_3D\Kinectv2withOpenGL\Kinectv2withOpenGL.vcxproj" (Build ターゲット) のビルドが完了しました。
+
+ビルドに成功しました。
+
+経過時間 00:00:04.81
