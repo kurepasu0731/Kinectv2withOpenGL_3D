@@ -436,8 +436,6 @@ void display_points(){
 	//**描画処理**//
 	glEnable(GL_DEPTH_TEST);
 
-	//画面が細かいので、適当なピッチに粗くする
-	int pitch = 1;
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLoadIdentity(); //変換行列の初期化
 	float cx = 0.0f;
